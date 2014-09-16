@@ -44,6 +44,7 @@
 
 namespace ass\XmlSecurity;
 
+use ass\XmlSecurity\Key\PrivatePublic;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
@@ -295,9 +296,10 @@ class DSig
     /**
      * Calculates the digest of the given data with the desired algorithm.
      *
-     * @param string $data            Data to calculate digest from
+     * @param string $data Data to calculate digest from
      * @param string $digestAlgorithm Digest algorithm
      *
+     * @throws Exception\InvalidArgumentException
      * @return string
      */
     private static function calculateDigest($data, $digestAlgorithm)
@@ -332,17 +334,16 @@ class DSig
     /**
      * Cananicalizes the given node with the desired algorithm.
      *
-     * @param DOMNode $node                      DOMNode to canonicalize
-     * @param string  $canonicalizationAlgorithm Canonicalization algorithm
-     * @param array   $xpath                     XPATH
-     * @param array   $nsPrefixes                Namespace prefixes
+     * @param DOMNode $node DOMNode to canonicalize
+     * @param string $canonicalizationAlgorithm Canonicalization algorithm
+     * @param array $xpath XPATH
+     * @param array $nsPrefixes Namespace prefixes
      *
+     * @throws Exception\InvalidArgumentException
      * @return string
      */
     private static function canonicalizeData(DOMNode $node, $canonicalizationAlgorithm, $xpath = null, $nsPrefixes = null)
     {
-        $exclusive = false;
-        $withComments = false;
         switch ($canonicalizationAlgorithm) {
             case self::C14N:
                 $exclusive = false;
@@ -485,12 +486,12 @@ class DSig
     /**
      * Create a ds:KeyInfo with X509 certificate from given Key object
      *
-     * @param DOMDocument $doc  DOMDocument to add the KeyInfo
-     * @param Key         $cert Key containing certificate
+     * @param DOMDocument $doc DOMDocument to add the KeyInfo
+     * @param PrivatePublic $cert Key containing certificate
      *
      * @return DOMElement
      */
-    public static function createX509CertificateKeyInfo(DOMDocument $doc, Key $cert)
+    public static function createX509CertificateKeyInfo(DOMDocument $doc, PrivatePublic $cert)
     {
         $publicCertificate = $cert->getX509Certificate(true);
 
@@ -507,20 +508,21 @@ class DSig
      * Create a ds:KeyInfo with RSA key vlue from given Key object
      *
      * @param DOMDocument $doc DOMDocument to add the KeyInfo
-     * @param Key         $key Key
+     * @param PrivatePublic $key Key
      *
+     * @throws Exception\InvalidArgumentException
      * @return DOMElement
      */
-    public static function createRSAKeyInfo(DOMDocument $doc, Key $key)
+    public static function createRSAKeyInfo(DOMDocument $doc, PrivatePublic $key)
     {
         $keyDetails = $key->getDetails();
 
         if (OPENSSL_KEYTYPE_RSA != $keyDetails['type']) {
-            throw InvalidArgumentException('key', 'Key type must be RSA.');
+            throw new InvalidArgumentException('key', 'Key type must be RSA.');
         }
 
         if (!isset($keyDetails['rsa']['n']) && !isset($keyDetails['rsa']['e'])) {
-            throw InvalidArgumentException('key', 'RSA key details must contain modulus and public exponent.');
+            throw new InvalidArgumentException('key', 'RSA key details must contain modulus and public exponent.');
         }
 
         $keyInfo = $doc->createElementNS(DSig::NS_XMLDSIG, DSig::PFX_XMLDSIG.':KeyInfo');
@@ -674,10 +676,11 @@ class DSig
     /**
      * Process transformation.
      *
-     * @param DOMNode              $node                    Not to transform
-     * @param string               $transformationAlgorithm Transformation algorithm
-     * @param array(string=>mixed) $options                 Options (xpath_transformation, inclusive_namespaces)
+     * @param DOMNode $node Not to transform
+     * @param string $transformationAlgorithm Transformation algorithm
+     * @param array(string=>mixed) $options Options (xpath_transformation, inclusive_namespaces)
      *
+     * @throws Exception\InvalidArgumentException
      * @return string
      */
     private static function processTransform(DOMNode $node, $transformationAlgorithm, array $options = array())
@@ -739,6 +742,8 @@ class DSig
             $signatureValue = $doc->createElementNS(self::NS_XMLDSIG, self::PFX_XMLDSIG . ':SignatureValue', $signatureValueString);
             $keyInfo = $signature->getElementsByTagNameNS(self::NS_XMLDSIG, 'KeyInfo')->item(0);
             $signature->insertBefore($signatureValue, $keyInfo);
+        } else {
+            $signatureValue = null;
         }
 
         return $signatureValue;
@@ -922,5 +927,4 @@ class DSig
 
         return false;
     }
-
 }
