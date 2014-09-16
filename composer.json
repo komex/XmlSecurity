@@ -1,5 +1,5 @@
 {
-    "name": "ass/xmlsecurity",
+    "name": "komex/xmlsecurity",
     "type": "library",
     "description": "The XmlSecurity library is written in PHP for working with XML Encryption and Signatures",
     "keywords": [ "xml", "security", "encryption", "signature" ],
@@ -21,7 +21,11 @@
         "lib-openssl": ">=0.9.0"
     },
     "require-dev": {
-        "satooshi/php-coveralls": "dev-master"
+        "satooshi/php-coveralls": "dev-master",
+        "phpunit/phpunit": "4.2.6"
+    },
+    "replace": {
+        "ass/xmlsecurity": "*"
     },
     "suggest": {
         "ext-mcrypt": "*"

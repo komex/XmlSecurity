@@ -19,7 +19,7 @@ class DSigTest extends \PHPUnit_Framework_TestCase
     public function testVerifyWithCommentEmptyUri()
     {
         $doc = new DOMDocument();
-        $doc->load($this->fixturesDir.'/DSig/withcomment_empty_uri.xml');
+        $doc->load($this->fixturesDir . '/DSig/withcomment_empty_uri.xml');
 
         $signature = DSig::locateSignature($doc);
 
@@ -32,14 +32,14 @@ class DSigTest extends \PHPUnit_Framework_TestCase
     public function testVerifyWithCommentIdUri()
     {
         $doc = new DOMDocument();
-        $doc->load($this->fixturesDir.'/DSig/withcomment_id_uri.xml');
+        $doc->load($this->fixturesDir . '/DSig/withcomment_id_uri.xml');
 
         $signature = DSig::locateSignature($doc);
 
         $this->assertInstanceOf('\DOMElement', $signature, 'Signature element');
 
         $options = array(
-            'id_name'      => 'id',
+            'id_name' => 'id',
             'id_ns_prefix' => 'xml',
             'id_prefix_ns' => 'http://www.w3.org/XML/1998/namespace',
         );
@@ -50,7 +50,7 @@ class DSigTest extends \PHPUnit_Framework_TestCase
     public function testVerifyDocumentSha1()
     {
         $doc = new DOMDocument();
-        $doc->load($this->fixturesDir.'/DSig/sign_document_sha1_result.xml');
+        $doc->load($this->fixturesDir . '/DSig/sign_document_sha1_result.xml');
 
         $signature = DSig::locateSignature($doc);
 
@@ -63,7 +63,7 @@ class DSigTest extends \PHPUnit_Framework_TestCase
     public function testVerifyDocumentSha256()
     {
         $doc = new DOMDocument();
-        $doc->load($this->fixturesDir.'/DSig/sign_document_sha256_result.xml');
+        $doc->load($this->fixturesDir . '/DSig/sign_document_sha256_result.xml');
 
         $signature = DSig::locateSignature($doc);
 
@@ -76,12 +76,12 @@ class DSigTest extends \PHPUnit_Framework_TestCase
     public function testSignDocumentSha1()
     {
         // if key has a passphrase, set it via fifth parameter in factory
-        $key = Key::factory(Key::RSA_SHA1, $this->fixturesDir.'/privkey.pem', true, Key::TYPE_PRIVATE);
-        $cert = Key::factory(Key::RSA_SHA1, $this->fixturesDir.'/mycert.pem', true, Key::TYPE_PUBLIC);
+        $key = Key::factory(Key::RSA_SHA1, $this->fixturesDir . '/privkey.pem', true, Key::TYPE_PRIVATE);
+        $cert = Key::factory(Key::RSA_SHA1, $this->fixturesDir . '/mycert.pem', true, Key::TYPE_PUBLIC);
 
         $doc = new DOMDocument();
         $doc->formatOutput = true;
-        $doc->load($this->fixturesDir.'/DSig/sign_document.xml');
+        $doc->load($this->fixturesDir . '/DSig/sign_document.xml');
 
         $keyInfo = DSig::createX509CertificateKeyInfo($doc, $cert);
 
@@ -89,19 +89,19 @@ class DSigTest extends \PHPUnit_Framework_TestCase
         DSig::addNodeToSignature($signature, $doc, DSig::SHA1, DSig::TRANSFORMATION_ENVELOPED_SIGNATURE);
         DSig::signDocument($signature, $key, DSig::EXC_C14N);
 
-        $file = $this->fixturesDir.'/DSig/sign_document_sha1_result.xml';
+        $file = $this->fixturesDir . '/DSig/sign_document_sha1_result.xml';
         $this->assertXmlStringEqualsXmlFile($file, $doc->saveXML(), "Sign document with SHA1");
     }
 
     public function testSignDocumentSha256()
     {
         // if key has a passphrase, set it via fifth parameter in factory
-        $key = Key::factory(Key::RSA_SHA256, $this->fixturesDir.'/privkey.pem', true, Key::TYPE_PRIVATE);
-        $cert = Key::factory(Key::RSA_SHA256, $this->fixturesDir.'/mycert.pem', true, Key::TYPE_PUBLIC);
+        $key = Key::factory(Key::RSA_SHA256, $this->fixturesDir . '/privkey.pem', true, Key::TYPE_PRIVATE);
+        $cert = Key::factory(Key::RSA_SHA256, $this->fixturesDir . '/mycert.pem', true, Key::TYPE_PUBLIC);
 
         $doc = new DOMDocument();
         $doc->formatOutput = true;
-        $doc->load($this->fixturesDir.'/DSig/sign_document.xml');
+        $doc->load($this->fixturesDir . '/DSig/sign_document.xml');
 
         $keyInfo = DSig::createX509CertificateKeyInfo($doc, $cert);
 
@@ -109,7 +109,44 @@ class DSigTest extends \PHPUnit_Framework_TestCase
         DSig::addNodeToSignature($signature, $doc, DSig::SHA1, DSig::TRANSFORMATION_ENVELOPED_SIGNATURE);
         DSig::signDocument($signature, $key, DSig::EXC_C14N);
 
-        $file = $this->fixturesDir.'/DSig/sign_document_sha256_result.xml';
+        $file = $this->fixturesDir . '/DSig/sign_document_sha256_result.xml';
         $this->assertXmlStringEqualsXmlFile($file, $doc->saveXML(), "Sign document with SHA256");
+    }
+
+    /**
+     * @expectedException \ass\XmlSecurity\Exception\InvalidArgumentException
+     * @expectedExceptionMessage Invalid argument given for 'digestAlgorithm'. Invalid digest algorithm given: unknown
+     */
+    public function testCalculateDigest()
+    {
+        $method = new \ReflectionMethod('ass\\XmlSecurity\\DSig', 'calculateDigest');
+        $method->setAccessible(true);
+        $this->assertEquals('9I3YU4IIYIFsddVND1hNyGMyenw=', $method->invoke(null, 'test data', DSig::SHA1));
+        $method->invoke(null, 'test data', 'unknown');
+    }
+
+    /**
+     * @expectedException \ass\XmlSecurity\Exception\InvalidArgumentException
+     * @expectedExceptionMessage Invalid argument given for 'digestAlgorithm'. Invalid digest algorithm given: unknown
+     */
+    public function testCalculatedDigestCustom()
+    {
+        $method = new \ReflectionMethod('ass\\XmlSecurity\\DSig', 'calculateDigest');
+        $method->setAccessible(true);
+        DSig::addAdditionalDigestAlgorithm('custom', array($this, 'customAlgorithm'));
+        $this->assertEquals('test data after customAlgorithm()', $method->invoke(null, 'test data', 'custom'));
+        DSig::addAdditionalDigestAlgorithm(
+            'custom',
+            function ($data) {
+                return $data . ' after closure';
+            }
+        );
+        $this->assertEquals('test data after closure', $method->invoke(null, 'test data', 'custom'));
+        $method->invoke(null, 'test data', 'unknown');
+    }
+
+    public function customAlgorithm($data)
+    {
+        return $data . ' after customAlgorithm()';
     }
 }
